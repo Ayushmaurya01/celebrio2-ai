@@ -31,6 +31,7 @@ interface AIPlannerViewProps {
 export const AIPlannerView: React.FC<AIPlannerViewProps> = ({
   activeEvent,
   onUpdateEvent,
+  settings,
   onAddBudgetItem,
   onAddVendorTask,
   onAddMilestone,
@@ -43,10 +44,16 @@ export const AIPlannerView: React.FC<AIPlannerViewProps> = ({
   const [appliedActions, setAppliedActions] = useState<Record<string, boolean>>({});
   const [adoptedItems, setAdoptedItems] = useState<Record<string, boolean>>({});
 
+  const isLiveAI = Boolean(settings.geminiApiKey && !settings.preferOfflineDemo);
+
   const handleRegeneratePlan = async () => {
     setIsGeneratingPlan(true);
     try {
-      const plan = await generateAIEventPlan(activeEvent);
+      const plan = await generateAIEventPlan(activeEvent, {
+        apiKey: settings.geminiApiKey,
+        model: settings.model,
+        forceOffline: settings.preferOfflineDemo,
+      });
 
       onUpdateEvent({
         ...activeEvent,
@@ -54,7 +61,12 @@ export const AIPlannerView: React.FC<AIPlannerViewProps> = ({
         updatedAt: new Date().toISOString(),
       });
 
-      showToast('Deterministic event plan refreshed!', 'success');
+      showToast(
+        plan.isLiveAI 
+          ? 'Live Gemini AI event plan generated successfully!' 
+          : 'Deterministic event plan refreshed!',
+        'success'
+      );
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       showToast(`Plan generation failed: ${errorMsg}`, 'warning');
@@ -88,7 +100,12 @@ export const AIPlannerView: React.FC<AIPlannerViewProps> = ({
       const assistantMsg = await sendChatMessageToPlanner(
         query,
         activeEvent,
-        newHistory
+        newHistory,
+        {
+          apiKey: settings.geminiApiKey,
+          model: settings.model,
+          forceOffline: settings.preferOfflineDemo,
+        }
       );
 
       onUpdateEvent({
@@ -192,7 +209,7 @@ export const AIPlannerView: React.FC<AIPlannerViewProps> = ({
             width: '38px',
             height: '38px',
             borderRadius: '50%',
-            background: 'var(--primary-500)',
+            background: isLiveAI ? 'var(--gold-500)' : 'var(--primary-500)',
             color: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
@@ -204,14 +221,16 @@ export const AIPlannerView: React.FC<AIPlannerViewProps> = ({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <strong style={{ fontSize: '1rem' }}>
-                Deterministic AI Planning Engine
+                {isLiveAI ? 'Live Gemini AI Assistant' : 'Deterministic AI Planning Engine'}
               </strong>
-              <span className="badge badge-coral">
-                100% Offline Reliable
+              <span className={`badge ${isLiveAI ? 'badge-gold' : 'badge-coral'}`}>
+                {isLiveAI ? `Active (${settings.model})` : 'Offline Demo Mode'}
               </span>
             </div>
             <p style={{ fontSize: '0.82rem', margin: 0, color: 'var(--text-secondary)' }}>
-              Bespoke algorithmic event architect producing concrete themes, color swatches, culinary plans, and logistics without network dependencies.
+              {isLiveAI
+                ? 'Connected directly to Google Gemini API with dynamic multimodal reasoning.'
+                : 'Deterministic, tailored event architect producing concrete plans without requiring an API key. (Never mocks live status).'}
             </p>
           </div>
         </div>
@@ -425,7 +444,7 @@ export const AIPlannerView: React.FC<AIPlannerViewProps> = ({
               <Bot size={20} color="var(--primary-500)" />
               <strong style={{ fontSize: '0.95rem' }}>Celebrio Planning Concierge</strong>
               <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
-                Deterministic Assistant
+                {isLiveAI ? 'Live Gemini Chat' : 'Deterministic Assistant'}
               </span>
             </div>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
